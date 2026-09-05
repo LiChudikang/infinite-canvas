@@ -19,13 +19,21 @@ type VideoMediaOptions = RequestOptions & { videos?: ReferenceVideo[]; audios?: 
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "plugin"; model: string };
+export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "ark" | "plugin"; model: string };
 type GeminiInlineData = { bytesBase64Encoded: string; mimeType: string };
 type GeminiVideoOperation = {
     name?: string;
     done?: boolean;
     error?: { message?: string };
     response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } };
+};
+type ArkVideoTask = {
+    id?: string;
+    status?: "queued" | "running" | "succeeded" | "failed" | "expired" | "cancelled";
+    error?: { message?: string } | string;
+    message?: string;
+    content?: { video_url?: string; last_frame_url?: string } | null;
+    video_url?: string;
 };
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
 
@@ -75,6 +83,7 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const script = resolveModelScript(config, selectedModel);
     if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
     assertVideoConfig(requestConfig, requestConfig.model);
+    if (requestConfig.apiFormat === "ark") return createArkVideoTask(requestConfig, selectedModel, prompt, references, options);
     if (requestConfig.apiFormat === "gemini") return createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options);
     return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
 }
@@ -86,6 +95,7 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
     }
     const requestConfig = resolveModelRequestConfig(config, task.model);
     assertVideoConfig(requestConfig, requestConfig.model);
+    if (task.provider === "ark") return pollArkVideoTask(requestConfig, task, options);
     if (task.provider === "gemini") return pollGeminiVideoTask(requestConfig, task, options);
     return pollOpenAIVideoTask(requestConfig, task, options);
 }
@@ -174,6 +184,51 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
         return { id: created.id, provider: "openai", model };
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
+async function createArkVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
+    const images = await Promise.all(references.map((image) => imageToDataUrl(image)));
+    const videos = await Promise.all((options?.videos || []).map((video) => referenceMediaToFile(video, "ref.mp4", "invalidReferenceVideo", options).then(readFileAsDataUrl)));
+    const audios = await Promise.all((options?.audios || []).map((audio) => referenceMediaToFile(audio, "ref.mp3", "invalidReferenceAudio", options).then(readFileAsDataUrl)));
+    const mode = resolveVideoMode(config.videoMode, images.length);
+    const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+    images.forEach((url, index) => {
+        const role = mode === "frames" ? (index === 0 ? "first_frame" : "last_frame") : "reference_image";
+        content.push({ type: "image_url", image_url: { url }, role });
+    });
+    videos.forEach((url) => content.push({ type: "video_url", video_url: { url }, role: "reference_video" }));
+    audios.forEach((url) => content.push({ type: "audio_url", audio_url: { url }, role: "reference_audio" }));
+    try {
+        const created = (await axios.post<ArkVideoTask>(aiApiUrl(config, "/contents/generations/tasks"), {
+            model: modelOptionName(model),
+            content,
+            resolution: normalizeVideoResolution(config.vquality),
+            ratio: videoAspectRatio(config.size) === "auto" ? "adaptive" : videoAspectRatio(config.size),
+            duration: Number(normalizeVideoSeconds(config.videoSeconds)),
+            generate_audio: boolConfig(config.videoGenerateAudio, true),
+            watermark: boolConfig(config.videoWatermark, false),
+            return_last_frame: true,
+        }, { headers: aiHeaders(config, "application/json"), signal: options?.signal })).data;
+        if (!created.id) throw new Error(apiText("noVideoTaskId"));
+        return { id: created.id, provider: "ark", model };
+    } catch (error) {
+        throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
+async function pollArkVideoTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    try {
+        const state = (await axios.get<ArkVideoTask>(aiApiUrl(config, `/contents/generations/tasks/${encodeURIComponent(task.id)}`), { headers: aiHeaders(config), signal: options?.signal })).data;
+        const url = state.content?.video_url || state.video_url;
+        if (state.status === "succeeded" && url) return { status: "completed", result: await videoResultFromUrl(url, options) };
+        if (state.status === "succeeded") return { status: "failed", error: apiText("noPlayableVideo") };
+        if (state.status === "failed" || state.status === "expired" || state.status === "cancelled") {
+            return { status: "failed", error: readApiErrorMessage(state.error) || state.message || apiText("videoGenerationFailed") };
+        }
+        return { status: "pending" };
+    } catch (error) {
+        throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
     }
 }
 

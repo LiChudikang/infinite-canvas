@@ -325,6 +325,7 @@ export default {
     },
     navigation: {
         canvas: "My Canvases",
+        templates: "Workflow Templates",
         image: "Image Studio",
         video: "Video Studio",
         prompts: "Prompt Library",

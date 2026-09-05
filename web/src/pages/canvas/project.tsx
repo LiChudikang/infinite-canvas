@@ -74,6 +74,7 @@ import { registerBuiltinNodes } from "@/components/canvas/nodes/builtin-nodes";
 import { CanvasPluginManagerModal } from "@/components/canvas/canvas-plugin-manager-modal";
 import { CanvasRefreshShell } from "@/components/canvas/canvas-refresh-shell";
 import { CanvasTopBar } from "@/components/canvas/canvas-top-bar";
+import { PublishWorkflowTemplateModal } from "@/components/canvas/publish-workflow-template-modal";
 import { ConnectionCreateMenu, NodeCreateMenu, type PendingConnectionCreate } from "@/components/canvas/canvas-create-menus";
 import {
     CanvasNodeType,
@@ -257,6 +258,7 @@ function InfiniteCanvasPage() {
     const [isNodeResizing, setIsNodeResizing] = useState(false);
     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
+    const [publishTemplateOpen, setPublishTemplateOpen] = useState(false);
 
     const nodesRef = useRef(nodes);
     const connectionsRef = useRef(connections);
@@ -270,6 +272,7 @@ function InfiniteCanvasPage() {
     const pendingConnectionCreateRef = useRef(pendingConnectionCreate);
     const generationRequestsRef = useRef(new Map<string, CanvasGenerationRequest>());
     const videoPollIdsRef = useRef(new Set<string>());
+    const templateRunStartedRef = useRef(false);
 
     const createHistoryEntry = useCallback(
         (): CanvasHistoryEntry => ({
@@ -306,7 +309,7 @@ function InfiniteCanvasPage() {
         async (nodeId: string, config: Parameters<typeof buildGenerationConfig>[0], prompt: string, images: Parameters<typeof createVideoGenerationTask>[2], signal: AbortSignal, extra: CanvasNodeData["metadata"] = {}, videos: ReferenceVideo[] = [], audios: ReferenceAudio[] = []) => {
             const task = await createVideoGenerationTask(config, prompt, images, { signal, videos, audios });
             if (task.provider !== "plugin") {
-                setNodes((prev) => prev.map((item) => (item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoTaskId: task.id, videoTaskProvider: task.provider === "gemini" ? "gemini" : "openai", model: config.model } } : item)));
+                setNodes((prev) => prev.map((item) => (item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoTaskId: task.id, videoTaskProvider: task.provider === "gemini" ? "gemini" : task.provider === "ark" ? "ark" : "openai", model: config.model } } : item)));
             }
             const video = await storeGeneratedVideo(await waitForVideoGenerationTask(config, task, { signal }));
             setNodes((prev) => prev.map((item) => (item.id === nodeId ? applyGeneratedVideo(item, video, { prompt, model: config.model, ...extra }) : item)));
@@ -333,7 +336,7 @@ function InfiniteCanvasPage() {
                 setRunningNodeId(node.id);
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
                 controller = startGenerationRequest(node.id, node.id, node.id);
-                const video = await storeGeneratedVideo(await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal }));
+                const video = await storeGeneratedVideo(await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : node.metadata?.videoTaskProvider === "ark" ? "ark" : "openai", model: generationConfig.model }, { signal: controller.signal }));
                 setNodes((prev) =>
                     prev.map((item) =>
                         item.id === node.id
@@ -2710,6 +2713,36 @@ function InfiniteCanvasPage() {
         generateNodeRef.current = handleGenerateNode;
     }, [handleGenerateNode]);
 
+    useEffect(() => {
+        if (!projectLoaded || searchParams.get("runTemplate") !== "1" || templateRunStartedRef.current) return;
+        const configs = nodesRef.current
+            .filter((node) => node.type === CanvasNodeType.Config && node.metadata?.generationMode === "video")
+            .sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
+        if (!configs.length) {
+            message.warning("模板中没有可运行的视频生成节点");
+            navigate(`/canvas/${projectId}`, { replace: true });
+            return;
+        }
+        const missingConfig = configs.find((node) => {
+            const generationConfig = buildGenerationConfig(effectiveConfig, node, "video");
+            return !isAiConfigReady(generationConfig, generationConfig.model);
+        });
+        if (missingConfig) {
+            message.warning("请先配置模板所需的视频模型渠道，完成后会继续生成");
+            openConfigDialog(true, "channels");
+            return;
+        }
+
+        templateRunStartedRef.current = true;
+        navigate(`/canvas/${projectId}`, { replace: true });
+        void (async () => {
+            for (const node of configs) {
+                await handleGenerateNode(node.id, "video", node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
+            }
+            message.success("模板生成流程已结束，请检查各节点结果");
+        })();
+    }, [effectiveConfig, handleGenerateNode, isAiConfigReady, message, navigate, openConfigDialog, projectId, projectLoaded, searchParams]);
+
     const handleRetryNode = useCallback(
         async (node: CanvasNodeData, imageId?: string) => {
             if (hasResumableVideoTask(node)) {
@@ -3096,6 +3129,12 @@ function InfiniteCanvasPage() {
                     onCreateProject={createAndOpenProject}
                     onDeleteProject={deleteCurrentProject}
                     onExportProject={exportCurrentProject}
+                    onPublishTemplate={() => setPublishTemplateOpen(true)}
+                    onRemakeTemplate={
+                        currentProject?.templateInstance
+                            ? () => navigate(`/templates/${currentProject.templateInstance!.snapshot.templateId}/run?version=${currentProject.templateInstance!.snapshot.version}`)
+                            : undefined
+                    }
                     onImportImage={() => handleUploadRequest()}
                     onOpenPlugins={() => setPluginManagerOpen(true)}
                     onUndo={undoCanvas}
@@ -3104,6 +3143,14 @@ function InfiniteCanvasPage() {
                     compactAgentStatus={{ connected: localAgentConnected, enabled: localAgentEnabled, activity: localAgentActivity }}
                     onToggleAgent={toggleAgentPanel}
                 />
+
+                {currentProject ? (
+                    <PublishWorkflowTemplateModal
+                        open={publishTemplateOpen}
+                        project={{ id: currentProject.id, title: currentProject.title, nodes, connections }}
+                        onClose={() => setPublishTemplateOpen(false)}
+                    />
+                ) : null}
 
                 <InfiniteCanvas
                     containerRef={containerRef}

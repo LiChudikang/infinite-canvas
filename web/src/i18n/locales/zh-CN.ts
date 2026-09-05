@@ -325,6 +325,7 @@ export default {
     },
     navigation: {
         canvas: "我的画布",
+        templates: "工作流模板",
         image: "生图工作台",
         video: "视频创作台",
         prompts: "提示词库",

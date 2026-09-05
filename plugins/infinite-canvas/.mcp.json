@@ -1,9 +1,12 @@
 {
   "mcpServers": {
     "infinite-canvas": {
-      "command": "npx",
-      "args": ["-y", "@basketikun/canvas-agent@latest", "mcp"],
-      "startup_timeout_sec": 20,
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "/Users/lichudikang/ai视频/infinite-canvas/canvas-agent/dist/index.js",
+        "mcp"
+      ],
+      "startup_timeout_sec": 30,
       "tool_timeout_sec": 90
     }
   }
