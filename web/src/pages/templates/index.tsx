@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { latestWorkflowTemplates, useWorkflowTemplateStore } from "@/stores/use-workflow-template-store";
 import type { WorkflowTemplate } from "@/types/workflow-template";
+import { LocalWorkflowRuns } from "./local-runs";
 
 export default function TemplatesPage() {
     const { modal } = App.useApp();
@@ -25,6 +26,7 @@ export default function TemplatesPage() {
                     <Link to="/canvas"><Button type="primary" icon={<Plus className="size-4" />}>从画布创建</Button></Link>
                 </header>
 
+                <LocalWorkflowRuns />
                 {!hydrated ? (
                     <section className="flex min-h-[360px] items-center justify-center border-y border-stone-200 text-sm text-stone-500 dark:border-stone-800">正在加载模板...</section>
                 ) : latest.length ? (

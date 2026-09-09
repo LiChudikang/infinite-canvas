@@ -5,7 +5,11 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Native speech and sentence captions: two 15-second Seedance tasks were submitted through the canvas. Six mock tests cover cue validation, review gating and versioned composition without new generation. Local ASR with speech detection and a 30-second captioned export have run successfully; voice consistency, visual continuity, manual cue editing and restart behavior still need user acceptance.
+
 The current release needs manual verification in these areas:
+
+- Local Seedance workflow: five mocked recovery/download tests pass; existing H.OS tasks were composed into a 45-second video with full decode verification, sampled Chinese captions/logo, and personal template publishing (third shot reused a local original). Fresh paid generation, failed-shot retry, vertical output, and silent input handling still need acceptance. See `docs/seedance-local-workflow.md`; this is not production acceptance.
 
 - Workflow templates: publish a canvas containing video configuration nodes, `{{text_variables}}`, and replaceable source image nodes. Publishing the same source canvas again should create the next immutable version. The template library should select historical versions, show call and cost estimates without inventing a price, instantiate Replicate and Similar modes into independent canvases, preserve the source template/version snapshot, run video nodes from left to right, and expose Remake from the generated canvas. Deleting the source canvas must not remove media still referenced by a template.
 - Volcengine Ark / Seedance: adding an Ark provider should default to `https://ark.cn-beijing.volces.com/api/v3`, classify Seedance models as video, submit JSON content with text and first/last-frame or general-reference roles, store the returned task ID with provider `ark`, resume polling after refresh, and download the successful `content.video_url`. Direct browser CORS failures should still direct the user to the existing local proxy. No live paid request has been run as part of this implementation.

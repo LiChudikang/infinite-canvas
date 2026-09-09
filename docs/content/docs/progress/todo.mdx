@@ -5,7 +5,9 @@ description: Planned follow-up work
 
 # TODO
 
+- Long-form native audio continuity: add shared voice/character references and verify consistency across shots. Text prompts alone do not guarantee the same voice or character. Sentence-caption recognition, review and burn-in have moved to pending tests.
+
 - Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).
 - Add Skill installation from web search, Skill resource-file management, and controlled local-memory persistence.
 - Add a server-backed public template catalog with accounts, publishing permissions, immutable version storage, and shared media objects. The current workflow template library is personal and browser-local only.
-- Add a recoverable workflow runner for dependent image, video, subtitle, music, stitching, and export steps. The current first slice runs video configuration nodes sequentially and keeps post-processing disabled.
+- Extend the local Seedance runner to dependent image/video generation, first/last-frame chaining, reference audio/video, and independent music tracks. Local task snapshots, resume/adoption, subtitles, logo and concatenation are implemented and remain in pending tests.

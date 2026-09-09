@@ -75,6 +75,7 @@ import { CanvasPluginManagerModal } from "@/components/canvas/canvas-plugin-mana
 import { CanvasRefreshShell } from "@/components/canvas/canvas-refresh-shell";
 import { CanvasTopBar } from "@/components/canvas/canvas-top-bar";
 import { PublishWorkflowTemplateModal } from "@/components/canvas/publish-workflow-template-modal";
+import { SeedanceWorkflowPanel } from "@/components/canvas/seedance-workflow-panel";
 import { ConnectionCreateMenu, NodeCreateMenu, type PendingConnectionCreate } from "@/components/canvas/canvas-create-menus";
 import {
     CanvasNodeType,
@@ -2715,6 +2716,11 @@ function InfiniteCanvasPage() {
 
     useEffect(() => {
         if (!projectLoaded || searchParams.get("runTemplate") !== "1" || templateRunStartedRef.current) return;
+        if (currentProject?.templateInstance?.snapshot.postProcess.enabled) {
+            navigate(`/canvas/${projectId}`, { replace: true });
+            message.info("请展开右上方完整视频工作流，确认后开始生成");
+            return;
+        }
         const configs = nodesRef.current
             .filter((node) => node.type === CanvasNodeType.Config && node.metadata?.generationMode === "video")
             .sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
@@ -3114,6 +3120,7 @@ function InfiniteCanvasPage() {
         <main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
             <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onInsertAsset={handleAssetInsert} />
             <section className="relative min-w-0 flex-1 overflow-hidden">
+                <SeedanceWorkflowPanel key={projectId} projectId={projectId} title={currentProject?.title || "视频工作流"} nodes={nodes} connections={connections} setNodes={setNodes} setConnections={setConnections} instance={currentProject?.templateInstance} />
                 <CanvasTopBar
                     title={currentProject?.title || t("canvas.projectPage.untitledCanvas")}
                     titleDraft={titleDraft}

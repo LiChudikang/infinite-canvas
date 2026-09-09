@@ -6,6 +6,7 @@ import { buildSeedanceSummary, discoverTextVariables, imageNodeVariable } from "
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useWorkflowTemplateStore } from "@/stores/use-workflow-template-store";
 import { CanvasNodeType } from "@/types/canvas";
+import { localForageStorage } from "@/lib/localforage-storage";
 
 export function PublishWorkflowTemplateModal({ open, project, onClose }: { open: boolean; project: Pick<CanvasProject, "id" | "title" | "nodes" | "connections">; onClose: () => void }) {
     const { message } = App.useApp();
@@ -39,9 +40,12 @@ export function PublishWorkflowTemplateModal({ open, project, onClose }: { open:
         setImageNodeIds(existing?.variables.filter((item) => item.type === "image").map((item) => item.nodeId || "").filter(Boolean) || imageCandidates.filter((node) => !node.metadata?.content).map((node) => node.id));
     }, [existing, imageCandidates, open, project.title]);
 
-    const publish = () => {
+    const publish = async () => {
         if (!title.trim()) return message.warning("请填写模板名称");
         if (!summary.estimatedCalls) return message.warning("画布中至少需要一个视频生成配置节点");
+        const savedPost = await localForageStorage.getItem(`infinite-canvas:workflow-post:${project.id}`);
+        const templateNodes = project.nodes.filter((node) => !node.metadata?.storageKey?.startsWith("workflow:")).map((node) => ({ ...node, metadata: { ...node.metadata, workflowRunId: undefined } }));
+        const nodeIds = new Set(templateNodes.map((node) => node.id));
         const template = publishTemplate({
             ...(existing ? { templateId: existing.templateId } : {}),
             sourceProjectId: project.id,
@@ -50,10 +54,10 @@ export function PublishWorkflowTemplateModal({ open, project, onClose }: { open:
             visibility: "personal",
             variables: [...textVariables, ...imageCandidates.filter((node) => imageNodeIds.includes(node.id)).map(imageNodeVariable)],
             lockedFields: ["model", "duration", "camera", "aspect_ratio", "resolution", "video_mode", "generate_audio", "watermark"],
-            nodes: JSON.parse(JSON.stringify(project.nodes)),
-            edges: JSON.parse(JSON.stringify(project.connections)),
+            nodes: JSON.parse(JSON.stringify(templateNodes)),
+            edges: JSON.parse(JSON.stringify(project.connections.filter((edge) => nodeIds.has(edge.fromNodeId) && nodeIds.has(edge.toNodeId)))),
             seedanceConfig: summary,
-            postProcess: { enabled: false, steps: [] },
+            postProcess: { ...(savedPost ? JSON.parse(savedPost) : {}), enabled: summary.models.every((model) => model.split("::").pop()?.startsWith("doubao-seedance-")), steps: ["seedance", "download", "subtitles", "logo", "concat"] },
             ...(estimatedUnitCost === null ? {} : { estimatedUnitCost }),
             currency: "CNY",
         });

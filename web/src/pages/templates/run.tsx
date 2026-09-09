@@ -101,8 +101,8 @@ export default function TemplateRunPage() {
                         <span className="text-sm text-stone-500">预计费用</span>
                         <span className="text-right text-lg font-semibold">{estimate === undefined ? "以渠道账单为准" : `¥${estimate.toFixed(2)}`}</span>
                     </div>
-                    <Button block type="primary" size="large" className="mt-5" icon={<Play className="size-4" />} loading={creating} onClick={() => void start()}>一键生成</Button>
-                    <p className="mt-3 text-xs leading-5 text-stone-500">会先创建独立画布快照，再依次运行其中的视频生成节点。刷新后可根据任务 ID 继续查询。</p>
+                    <Button block type="primary" size="large" className="mt-5" icon={<Play className="size-4" />} loading={creating} onClick={() => void start()}>{template.postProcess.enabled ? "创建工作流画布" : "一键生成"}</Button>
+                    <p className="mt-3 text-xs leading-5 text-stone-500">{template.postProcess.enabled ? "先创建独立画布快照，再展开右上角「完整视频工作流」确认付费生成。" : "会先创建独立画布快照，再依次运行其中的视频生成节点。刷新后可根据任务 ID 继续查询。"}</p>
                     <div className="mt-5 flex items-center gap-2 text-xs text-stone-500"><ImagePlus className="size-4" />素材仅保存在当前浏览器本地。</div>
                 </aside>
             </div>

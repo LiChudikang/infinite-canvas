@@ -23,6 +23,9 @@ export type WorkflowTemplateSeedanceConfig = {
 export type WorkflowTemplatePostProcess = {
     enabled: boolean;
     steps: string[];
+    subtitles?: string[];
+    logo?: string;
+    autoSubtitles?: boolean;
 };
 
 export type WorkflowTemplate = {
