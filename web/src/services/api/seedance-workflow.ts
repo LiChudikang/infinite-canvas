@@ -33,7 +33,7 @@ export function dataUrl(blob: Blob): Promise<string> {
 export function videoConfigs(nodes: CanvasNodeData[]) {
     return nodes.filter((n) => n.type === "config" && n.metadata?.generationMode === "video").sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
 }
-export async function workflowShots(nodes: CanvasNodeData[], edges: CanvasConnection[]) {
+export async function workflowShots(nodes: CanvasNodeData[], edges: CanvasConnection[], imageVariables: Record<string, string> = {}) {
     return Promise.all(videoConfigs(nodes).map(async (node) => {
         const visited = new Set<string>(), inputs: CanvasNodeData[] = [];
         const visit = (nodeId: string) => {
@@ -46,6 +46,7 @@ export async function workflowShots(nodes: CanvasNodeData[], edges: CanvasConnec
         edges.filter((e) => e.toNodeId === node.id).forEach((e) => visit(e.fromNodeId));
         (node.metadata?.references || []).forEach(visit);
         const images = await Promise.all(inputs.filter((n) => n.type === "image").map(async (n) => {
+            if (Object.hasOwn(imageVariables, n.id)) return `{{${imageVariables[n.id]}}}`;
             const blob = n.metadata?.storageKey ? await getImageBlob(n.metadata.storageKey) : null;
             if (blob) return dataUrl(blob);
             if (n.metadata?.content?.startsWith("data:image/")) return n.metadata.content;

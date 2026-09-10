@@ -11,10 +11,12 @@ import ImagePage from "@/pages/image";
 import NotFound from "@/pages/not-found";
 import PromptsPage from "@/pages/prompts";
 import VideoPage from "@/pages/video";
+import StudioPage from "@/pages/studio";
 import TemplatesPage from "@/pages/templates";
 import TemplateRunPage from "@/pages/templates/run";
 
 export const router = createBrowserRouter([
+    ...["/studio", "/studio/works", "/studio/channel", "/studio/publish", "/studio/templates/:id/:version"].map((path) => ({ path, element: <StudioPage /> })),
     {
         element: (
             <UserLayout>

@@ -23,7 +23,7 @@ export default function TemplatesPage() {
                         <p className="text-xs text-stone-500">把成熟流程交给别人重复使用</p>
                         <h1 className="mt-3 text-3xl font-semibold">视频工作流模板</h1>
                     </div>
-                    <Link to="/canvas"><Button type="primary" icon={<Plus className="size-4" />}>从画布创建</Button></Link>
+                    <div className="flex gap-3"><Link to="/studio"><Button>在线模板平台</Button></Link><Link to="/canvas"><Button type="primary" icon={<Plus className="size-4" />}>从画布创建</Button></Link></div>
                 </header>
 
                 <LocalWorkflowRuns />

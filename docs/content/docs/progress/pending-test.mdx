@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 在线模板平台 `/studio`：多分类模板、作者上架、固定版本链接、个人加密方舟渠道、素材表单、用户隔离任务、字幕校对和下载已实现。平台 5 项与现有执行器 6 项模拟测试通过；未运行构建或语法检查，尚待双浏览器/移动端验收、真实方舟生成和反向代理部署。配置及边界见仓库 `docs/template-platform.md`。
+
 - Ark frame-based generation now sends `ratio: adaptive` when reference frames exist; verify a five-second first-frame request and preserve text-only/reference-mode ratio selection. No build or syntax check was run.
 
 - Native speech and sentence captions: two 15-second Seedance tasks were submitted through the canvas. Six mock tests cover cue validation, review gating and versioned composition without new generation. Local ASR with speech detection and a 30-second captioned export have run successfully; voice consistency, visual continuity, manual cue editing and restart behavior still need user acceptance.

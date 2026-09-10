@@ -40,6 +40,7 @@ function localPluginsManifest(): Plugin {
 
 export default defineConfig({
     base: process.env.VITE_BASE || "/",
+    server: { proxy: process.env.PLATFORM_PROXY_TARGET ? { "/api/platform": { target: process.env.PLATFORM_PROXY_TARGET } } : undefined },
     plugins: [react(), localPluginsManifest()],
     resolve: {
         alias: {

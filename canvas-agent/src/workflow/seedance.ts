@@ -46,7 +46,7 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 20_000));
 /** Disk state is authoritative. A persisted submitting marker never causes another POST. */
 export class SeedanceWorkflows {
     readonly active = new Map<string, Promise<void>>();
-    constructor(readonly root = path.join(CONFIG_DIR, "video-workflows"), readonly fetcher: typeof fetch = fetch, readonly composer = compose) {}
+    constructor(readonly root = path.join(CONFIG_DIR, "video-workflows"), readonly fetcher: typeof fetch = fetch, readonly composer = compose, readonly credentialProvider: (runId: string) => Promise<string> = credentials) {}
     folder(runId: string) { return path.join(this.root, id.parse(runId)); }
     async state(runId: string): Promise<WorkflowState> { return JSON.parse(await readFile(path.join(this.folder(runId), "state.json"), "utf8")); }
     async spec(runId: string): Promise<Spec> { return JSON.parse(await readFile(path.join(this.folder(runId), "snapshot.json"), "utf8")); }
@@ -59,7 +59,7 @@ export class SeedanceWorkflows {
         const spec = workflowSchema.parse(input);
         const folder = this.folder(spec.runId);
         if (await exists(path.join(folder, "state.json"))) return this.state(spec.runId);
-        await credentials();
+        await this.credentialProvider(spec.runId);
         await exec(process.env.FFMPEG_PATH || "ffmpeg", ["-version"]);
         if (spec.postProcess.autoSubtitles) await checkTranscriber();
         await mkdir(this.root, { recursive: true, mode: 0o700 });
@@ -120,7 +120,7 @@ export class SeedanceWorkflows {
     }
     async run(runId: string) {
         const spec = await this.spec(runId), state = await this.state(runId), folder = this.folder(runId);
-        const key = await credentials();
+        const key = await this.credentialProvider(runId);
         const api = async (method: string, suffix: string, body?: unknown) => {
             const response = await this.fetcher(API + suffix, { method, signal: AbortSignal.timeout(120_000), headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
             if (!response.ok) throw Object.assign(new Error(`方舟请求失败（HTTP ${response.status}）`), { status: response.status });
