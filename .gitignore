@@ -15,3 +15,14 @@ web/public/plugins
 plugins/canvas/*/dist
 plugins/canvas/*/node_modules
 web/public/plugins
+
+# Generated videos and local workflow outputs
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.m4v
+/hos-video-cut/
+/hos-video-materials/
+/tmp/

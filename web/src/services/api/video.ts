@@ -204,7 +204,7 @@ async function createArkVideoTask(config: AiConfig, model: string, prompt: strin
             model: modelOptionName(model),
             content,
             resolution: normalizeVideoResolution(config.vquality),
-            ratio: videoAspectRatio(config.size) === "auto" ? "adaptive" : videoAspectRatio(config.size),
+            ratio: (mode === "frames" && images.length > 0) || inferVideoRatio(config.size) === "auto" ? "adaptive" : videoAspectRatio(config.size),
             duration: Number(normalizeVideoSeconds(config.videoSeconds)),
             generate_audio: boolConfig(config.videoGenerateAudio, true),
             watermark: boolConfig(config.videoWatermark, false),

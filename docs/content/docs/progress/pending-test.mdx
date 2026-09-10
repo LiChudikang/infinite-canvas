@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Ark frame-based generation now sends `ratio: adaptive` when reference frames exist; verify a five-second first-frame request and preserve text-only/reference-mode ratio selection. No build or syntax check was run.
+
 - Native speech and sentence captions: two 15-second Seedance tasks were submitted through the canvas. Six mock tests cover cue validation, review gating and versioned composition without new generation. Local ASR with speech detection and a 30-second captioned export have run successfully; voice consistency, visual continuity, manual cue editing and restart behavior still need user acceptance.
 
 The current release needs manual verification in these areas:
